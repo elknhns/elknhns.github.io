@@ -4,12 +4,40 @@ import employees from "./employees.json";
 import "./App.css";
 
 function App() {
+  const [detectedInfos, setDetectedInfos] = useState([]);
   const [status, setStatus] = useState("initializing...");
   const [faceMatcher, setFaceMatcher] = useState(null);
   const videoRef = useRef();
   const canvasRef = useRef();
 
-  const displaySize = { width: 1080, height: 720 };
+  const displaySize = { width: 640, height: 480 };
+
+  const infoElems = detectedInfos.map((info) => (
+    <li key={info.id}>
+      <h3>{info.name}</h3>
+      <p><strong>Phone:</strong> {info.phone}</p>
+      <ul className='icons'>
+        {info.instagram !== "" && <li>
+          <a
+            href={`https://www.${info.instagram}`}
+            target='_blank'
+            rel='noreferrer'
+          >
+            <i className='fa-brands fa-instagram fa-3x'></i>
+          </a>
+        </li>}
+        {info.linkedin !== "" && <li>
+          <a
+            href={`https://www.${info.linkedin}`}
+            target='_blank'
+            rel='noreferrer'
+          >
+            <i className='fa-brands fa-linkedin fa-3x'></i>
+          </a>
+        </li>}
+      </ul>
+    </li>
+  ));
 
   useEffect(() => {
     const loadModels = async () => {
@@ -82,9 +110,9 @@ function App() {
     setInterval(async () => {
       // Recognize the faces
       const detections = await faceapi
-        .detectAllFaces(videoRef.current)
-        .withFaceLandmarks()
-        .withFaceDescriptors();
+      .detectAllFaces(videoRef.current)
+      .withFaceLandmarks()
+      .withFaceDescriptors();
       const resizedDetections = faceapi.resizeResults(detections, displaySize);
       const results = resizedDetections.map((d) =>
         faceMatcher.findBestMatch(d.descriptor)
@@ -94,12 +122,18 @@ function App() {
       canvasRef.current
         .getContext("2d")
         .clearRect(0, 0, displaySize.width, displaySize.height);
+      
+      setDetectedInfos([]);
       results.forEach((result, i) => {
         const box = resizedDetections[i].detection.box;
         const drawBox = new faceapi.draw.DrawBox(box, {
           label: `${result.label} (${(result.distance * 100).toFixed(2)}%)`,
         });
         drawBox.draw(canvasRef.current);
+        employees.forEach((employee) => {
+          if (employee.name === result.label)
+            setDetectedInfos((prev) => [...prev, employee]);
+        });
       });
     }, 100);
   };
@@ -107,17 +141,26 @@ function App() {
   return (
     <div className='App'>
       <h1>{status}</h1>
-      <div className='face-cam'>
-        <video
-          ref={videoRef}
-          height={displaySize.height}
-          width={displaySize.width}
-          onPlay={handleOnPlay}
-          autoPlay
-          muted
-        />
-
-        <canvas ref={canvasRef} />
+      <div className='body'>
+        <div className='face-cam'>
+          <video
+            ref={videoRef}
+            height={displaySize.height}
+            width={displaySize.width}
+            onPlay={handleOnPlay}
+            autoPlay
+            muted
+          />
+          <canvas ref={canvasRef} />
+        </div>
+        {infoElems.length > 0 && (
+          <div className="info">
+            <h2>Detected Info:</h2>
+            <ul>
+              {infoElems}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   );

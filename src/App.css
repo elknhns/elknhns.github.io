@@ -2,6 +2,27 @@
     text-align: center;
 }
 
+.info {
+    padding: 3rem;
+}
+
+.info > ul {
+    list-style: none;
+    padding: 0;
+}
+
+.info > li {
+    background-color: #232323;
+}
+
+.icons {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
 .face-cam {
     display: flex;
     justify-content: center;
