@@ -4,7 +4,6 @@ import employees from "./employees.json";
 import "./App.css";
 
 function App() {
-  const [initializing, setInitializing] = useState(false);
   const [status, setStatus] = useState("initializing...");
   const [faceMatcher, setFaceMatcher] = useState(null);
   const videoRef = useRef();
@@ -13,8 +12,6 @@ function App() {
   const displaySize = { width: 1080, height: 720 };
 
   useEffect(() => {
-    setInitializing(true);
-
     const loadModels = async () => {
       setStatus("loading all the models...");
       const MODEL_URL = `${process.env.PUBLIC_URL}/models`; // Our models directory URL
@@ -28,9 +25,9 @@ function App() {
     };
 
     const loadLabeledImages = async () => {
-      const labels = employees.map(employee => employee.name)
-      var loadedPhotos = 0
-      setStatus(`Learning some faces... (${loadedPhotos}/${labels.length})`)
+      const labels = employees.map((employee) => employee.name);
+      var loadedPhotos = 0;
+      setStatus(`Learning some faces... (${loadedPhotos}/${labels.length})`);
 
       return Promise.all(
         labels.map(async (label) => {
@@ -43,9 +40,9 @@ function App() {
             .detectSingleFace(img)
             .withFaceLandmarks()
             .withFaceDescriptor();
-          
+
           descriptions.push(detections.descriptor);
-          loadedPhotos++
+          loadedPhotos++;
           setStatus(
             `Learning some faces... (${loadedPhotos}/${labels.length})`
           );
@@ -58,10 +55,9 @@ function App() {
       await loadModels();
       const labeledFaceDescriptors = await loadLabeledImages();
       const matcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.6);
-      console.log(matcher);
+
       setFaceMatcher(matcher);
       setStatus("ready");
-      setInitializing(false);
       startVideo();
     };
 
@@ -84,6 +80,7 @@ function App() {
     faceapi.matchDimensions(canvasRef.current, displaySize);
 
     setInterval(async () => {
+      // Recognize the faces
       const detections = await faceapi
         .detectAllFaces(videoRef.current)
         .withFaceLandmarks()
@@ -100,7 +97,7 @@ function App() {
       results.forEach((result, i) => {
         const box = resizedDetections[i].detection.box;
         const drawBox = new faceapi.draw.DrawBox(box, {
-          label: result.toString(),
+          label: `${result.label} (${(result.distance * 100).toFixed(2)}%)`,
         });
         drawBox.draw(canvasRef.current);
       });
