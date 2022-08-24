@@ -5,6 +5,8 @@ import "./App.css";
 
 function App() {
   const [initializing, setInitializing] = useState(false);
+  const [status, setStatus] = useState("initializing...");
+  const [faceMatcher, setFaceMatcher] = useState(null);
   const videoRef = useRef();
   const canvasRef = useRef();
 
@@ -13,31 +15,58 @@ function App() {
   useEffect(() => {
     setInitializing(true);
 
-    const loadLabeledImages = () => {
-      // const labels = employees.map(employee => employee.name);
-      const labels = ['Aaron Lee', 'Elkana Hans', 'Muhammad Ilham Peruzzi'];
-
-      // return Promise.all(
-      //   labels.map(async label => {
-      //   })
-      // );
-    } 
-
     const loadModels = async () => {
+      setStatus("loading all the models...");
       const MODEL_URL = `${process.env.PUBLIC_URL}/models`; // Our models directory URL
       // Load all the necessary models
       await Promise.all([
-        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+        faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
         faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
         faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
         faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
       ]);
     };
-    
-    loadModels();
-    loadLabeledImages();
-    setInitializing(false);
-    startVideo();
+
+    const loadLabeledImages = async () => {
+      
+      const labels = ["Aaron Lee", "Elkana Hans", "Muhammad Ilham Peruzzi"];
+      var photosLoaded = 0
+      setStatus(`Learning some faces... (${photosLoaded}/${labels.length})`)
+
+      return Promise.all(
+        labels.map(async (label) => {
+          const descriptions = [];
+          const img = await faceapi.fetchImage(
+            `https://raw.githubusercontent.com/elknhns/face-recognition-server/master/public/labeled_images/${label}.png`
+          );
+
+          const detections = await faceapi
+            .detectSingleFace(img)
+            .withFaceLandmarks()
+            .withFaceDescriptor();
+          
+          descriptions.push(detections.descriptor);
+          photosLoaded++
+          setStatus(
+            `Learning some faces... (${photosLoaded}/${labels.length})`
+          );
+          return new faceapi.LabeledFaceDescriptors(label, descriptions);
+        })
+      );
+    };
+
+    const prepareEverything = async () => {
+      await loadModels();
+      const labeledFaceDescriptors = await loadLabeledImages();
+      const matcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.6);
+      console.log(matcher);
+      setFaceMatcher(matcher);
+      setStatus("ready");
+      setInitializing(false);
+      startVideo();
+    };
+
+    prepareEverything();
   }, []);
 
   const startVideo = async () => {
@@ -57,23 +86,31 @@ function App() {
 
     setInterval(async () => {
       const detections = await faceapi
-        .detectAllFaces(videoRef.current, new faceapi.TinyFaceDetectorOptions())
+        .detectAllFaces(videoRef.current)
         .withFaceLandmarks()
-        .withFaceExpressions();
+        .withFaceDescriptors();
       const resizedDetections = faceapi.resizeResults(detections, displaySize);
+      const results = resizedDetections.map((d) =>
+        faceMatcher.findBestMatch(d.descriptor)
+      );
 
+      // Clear the canvas before drawing the new result
       canvasRef.current
         .getContext("2d")
         .clearRect(0, 0, displaySize.width, displaySize.height);
-      faceapi.draw.drawDetections(canvasRef.current, resizedDetections);
-      faceapi.draw.drawFaceLandmarks(canvasRef.current, resizedDetections);
-      faceapi.draw.drawFaceExpressions(canvasRef.current, resizedDetections);
+      results.forEach((result, i) => {
+        const box = resizedDetections[i].detection.box;
+        const drawBox = new faceapi.draw.DrawBox(box, {
+          label: result.toString(),
+        });
+        drawBox.draw(canvasRef.current);
+      });
     }, 100);
   };
 
   return (
     <div className='App'>
-      <h1>{initializing ? "Initializing" : "Ready"}</h1>
+      <h1>{status}</h1>
       <div className='face-cam'>
         <video
           ref={videoRef}
