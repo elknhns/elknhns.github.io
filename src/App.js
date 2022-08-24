@@ -28,10 +28,9 @@ function App() {
     };
 
     const loadLabeledImages = async () => {
-      
-      const labels = ["Aaron Lee", "Elkana Hans", "Muhammad Ilham Peruzzi"];
-      var photosLoaded = 0
-      setStatus(`Learning some faces... (${photosLoaded}/${labels.length})`)
+      const labels = employees.map(employee => employee.name)
+      var loadedPhotos = 0
+      setStatus(`Learning some faces... (${loadedPhotos}/${labels.length})`)
 
       return Promise.all(
         labels.map(async (label) => {
@@ -46,9 +45,9 @@ function App() {
             .withFaceDescriptor();
           
           descriptions.push(detections.descriptor);
-          photosLoaded++
+          loadedPhotos++
           setStatus(
-            `Learning some faces... (${photosLoaded}/${labels.length})`
+            `Learning some faces... (${loadedPhotos}/${labels.length})`
           );
           return new faceapi.LabeledFaceDescriptors(label, descriptions);
         })
